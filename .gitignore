@@ -8,6 +8,9 @@ mvnw.cmd
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Compiled class files (outside target/)
+*.class
+
 # ============================================================================
 # Documentation Files (Markdown)
 # ============================================================================

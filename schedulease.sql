@@ -55,7 +55,11 @@ CREATE TABLE provider (
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
     description TEXT,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    availability INTEGER[] DEFAULT ARRAY[1,2,3,4,5], -- 1=Monday, 2=Tuesday, ..., 7=Sunday
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    CONSTRAINT check_availability_values CHECK (
+        availability <@ ARRAY[1,2,3,4,5,6,7] -- Only valid day numbers (1-7)
+    )
 );
 
 COMMENT ON TABLE provider IS 'Provider table - stores service provider information';
@@ -63,6 +67,7 @@ COMMENT ON COLUMN provider.id IS 'Unique provider identifier';
 COMMENT ON COLUMN provider.first_name IS 'First name';
 COMMENT ON COLUMN provider.last_name IS 'Last name';
 COMMENT ON COLUMN provider.description IS 'Service description';
+COMMENT ON COLUMN provider.availability IS 'Weekly availability as integer array (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday)';
 COMMENT ON COLUMN provider.is_active IS 'Whether the provider is active';
 
 -- ---------------------------------------------------------------------------
@@ -149,11 +154,36 @@ CREATE UNIQUE INDEX uk_appointments_time_slot
     WHERE status NOT IN ('CANCELLED');
 
 -- ============================================================================
+-- 2.6 Trigger Function: Validate Provider Availability (No Duplicates)
+-- ============================================================================
+
+-- Function to check for duplicate days in availability array
+CREATE OR REPLACE FUNCTION check_availability_no_duplicates()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Check if array has duplicates by comparing length with distinct count
+    IF array_length(NEW.availability, 1) != (SELECT COUNT(DISTINCT x) FROM unnest(NEW.availability) x) THEN
+        RAISE EXCEPTION 'Availability array cannot contain duplicate days';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to validate availability on INSERT or UPDATE
+CREATE TRIGGER trg_check_availability_duplicates
+    BEFORE INSERT OR UPDATE OF availability ON provider
+    FOR EACH ROW
+    EXECUTE FUNCTION check_availability_no_duplicates();
+
+COMMENT ON FUNCTION check_availability_no_duplicates() IS 'Validates that availability array has no duplicate day numbers';
+
+-- ============================================================================
 -- 3. CREATE INDEXES
 -- ============================================================================
 
 -- provider table indexes
 CREATE INDEX idx_provider_active ON provider(is_active);
+CREATE INDEX idx_provider_availability ON provider USING GIN(availability); -- For array queries
 
 -- service table indexes
 CREATE INDEX idx_service_active ON service(is_active);
@@ -177,12 +207,17 @@ CREATE INDEX idx_appointments_status ON appointments(status);
 -- ---------------------------------------------------------------------------
 -- 4.1 Insert Provider Data (Providers)
 -- ---------------------------------------------------------------------------
-INSERT INTO provider (id, first_name, last_name, description, is_active) VALUES
-(1, 'Emma', 'Zhang', 'Senior hairstylist specializing in various hairstyle designs and coloring techniques, 10 years of experience', TRUE),
-(2, 'Sophia', 'Li', 'Professional beautician providing facial care and skin care services, 8 years of experience', TRUE),
-(3, 'Michael', 'Wang', 'Massage therapist specializing in Chinese massage and sports rehabilitation, 12 years of experience', TRUE),
-(4, 'Olivia', 'Zhao', 'Senior hairstylist focusing on fashion coloring and perming, 6 years of experience', TRUE),
-(5, 'James', 'Chen', 'Professional massage technician providing deep tissue massage and relaxation therapy, 9 years of experience', TRUE);
+INSERT INTO provider (id, first_name, last_name, description, availability, is_active) VALUES
+(1, 'Emma', 'Zhang', 'Senior hairstylist specializing in various hairstyle designs and coloring techniques, 10 years of experience', 
+ ARRAY[1,2,3,4,5,6], TRUE), -- Monday to Saturday
+(2, 'Sophia', 'Li', 'Professional beautician providing facial care and skin care services, 8 years of experience', 
+ ARRAY[1,2,3,4,5], TRUE), -- Monday to Friday
+(3, 'Michael', 'Wang', 'Massage therapist specializing in Chinese massage and sports rehabilitation, 12 years of experience', 
+ ARRAY[2,3,4,5,6,7], TRUE), -- Tuesday to Sunday
+(4, 'Olivia', 'Zhao', 'Senior hairstylist focusing on fashion coloring and perming, 6 years of experience', 
+ ARRAY[1,3,4,5,6], TRUE), -- Monday, Wednesday to Saturday
+(5, 'James', 'Chen', 'Professional massage technician providing deep tissue massage and relaxation therapy, 9 years of experience', 
+ ARRAY[1,2,3,4,5,6,7], TRUE); -- All week
 
 -- Reset provider sequence
 SELECT setval('provider_id_seq', (SELECT MAX(id) FROM provider));
@@ -325,6 +360,49 @@ INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_ti
 -- Reset appointments sequence
 SELECT setval('appointments_id_seq', (SELECT MAX(id) FROM appointments));
 
+
+-- ============================================================================
+-- QUERY EXAMPLES FOR AVAILABILITY (INTEGER ARRAY)
+-- ============================================================================
+
+-- Example 1: Find providers available on Monday (day 1)
+-- SELECT * FROM provider WHERE 1 = ANY(availability) AND is_active = TRUE;
+
+-- Example 2: Find providers available on weekends (Saturday=6 or Sunday=7)
+-- SELECT * FROM provider WHERE availability && ARRAY[6,7] AND is_active = TRUE;
+
+-- Example 3: Find providers available on both Monday AND Friday (days 1 and 5)
+-- SELECT * FROM provider WHERE availability @> ARRAY[1,5] AND is_active = TRUE;
+
+-- Example 4: Find providers available on Monday OR Friday
+-- SELECT * FROM provider WHERE availability && ARRAY[1,5] AND is_active = TRUE;
+
+-- Example 5: Count work days for each provider
+-- SELECT id, first_name, last_name, array_length(availability, 1) as work_days 
+-- FROM provider ORDER BY work_days DESC;
+
+-- Example 6: List all available days for a specific provider (formatted)
+-- SELECT id, first_name, last_name,
+--        CASE WHEN 1 = ANY(availability) THEN 'Mon ' ELSE '' END ||
+--        CASE WHEN 2 = ANY(availability) THEN 'Tue ' ELSE '' END ||
+--        CASE WHEN 3 = ANY(availability) THEN 'Wed ' ELSE '' END ||
+--        CASE WHEN 4 = ANY(availability) THEN 'Thu ' ELSE '' END ||
+--        CASE WHEN 5 = ANY(availability) THEN 'Fri ' ELSE '' END ||
+--        CASE WHEN 6 = ANY(availability) THEN 'Sat ' ELSE '' END ||
+--        CASE WHEN 7 = ANY(availability) THEN 'Sun' ELSE '' END AS available_days
+-- FROM provider WHERE id = 1;
+
+-- Example 7: Find providers with specific availability pattern
+-- SELECT * FROM provider WHERE availability = ARRAY[1,2,3,4,5]; -- Exactly Mon-Fri
+
+-- Example 8: Add a day to provider's availability (e.g., add Sunday=7)
+-- UPDATE provider SET availability = array_append(availability, 7) WHERE id = 1;
+
+-- Example 9: Remove a day from provider's availability (e.g., remove Saturday=6)
+-- UPDATE provider SET availability = array_remove(availability, 6) WHERE id = 1;
+
+-- Example 10: Get all unique working days across all providers
+-- SELECT DISTINCT unnest(availability) as day_number FROM provider ORDER BY day_number;
 
 -- ============================================================================
 -- END OF SCRIPT

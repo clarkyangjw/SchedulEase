@@ -40,12 +40,6 @@ CREATE TABLE client (
     phone VARCHAR(20) NOT NULL
 );
 
-COMMENT ON TABLE client IS 'Client table - stores basic client information (no registration/login required)';
-COMMENT ON COLUMN client.id IS 'Unique client identifier';
-COMMENT ON COLUMN client.first_name IS 'First name';
-COMMENT ON COLUMN client.last_name IS 'Last name';
-COMMENT ON COLUMN client.phone IS 'Phone number';
-
 -- ---------------------------------------------------------------------------
 -- 2.2 Provider Table (provider)
 -- Purpose: Store service provider information (pre-configured, selected by clients during booking)
@@ -62,14 +56,6 @@ CREATE TABLE provider (
     )
 );
 
-COMMENT ON TABLE provider IS 'Provider table - stores service provider information';
-COMMENT ON COLUMN provider.id IS 'Unique provider identifier';
-COMMENT ON COLUMN provider.first_name IS 'First name';
-COMMENT ON COLUMN provider.last_name IS 'Last name';
-COMMENT ON COLUMN provider.description IS 'Service description';
-COMMENT ON COLUMN provider.availability IS 'Weekly availability as integer array (1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday, 7=Sunday)';
-COMMENT ON COLUMN provider.is_active IS 'Whether the provider is active';
-
 -- ---------------------------------------------------------------------------
 -- 2.3 Service Table (service)
 -- Purpose: Store service types (e.g., haircut, coloring, massage, etc.)
@@ -83,15 +69,6 @@ CREATE TABLE service (
     price DECIMAL(10,2),
     is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
-
-COMMENT ON TABLE service IS 'Service table - stores service type information';
-COMMENT ON COLUMN service.id IS 'Unique service identifier';
-COMMENT ON COLUMN service.name IS 'Service name';
-COMMENT ON COLUMN service.description IS 'Detailed service description';
-COMMENT ON COLUMN service.category IS 'Service category: HAIRCUT, BEAUTY, MASSAGE - defined as enum in application';
-COMMENT ON COLUMN service.duration IS 'Default service duration (minutes)';
-COMMENT ON COLUMN service.price IS 'Default service price';
-COMMENT ON COLUMN service.is_active IS 'Whether the service is active';
 
 -- ---------------------------------------------------------------------------
 -- 2.4 Provider-Service Association Table (provider_service)
@@ -108,12 +85,6 @@ CREATE TABLE provider_service (
         REFERENCES service(id) ON DELETE CASCADE,
     CONSTRAINT uk_provider_service UNIQUE (provider_id, service_id)
 );
-
-COMMENT ON TABLE provider_service IS 'Provider-Service association table - many-to-many relationship';
-COMMENT ON COLUMN provider_service.id IS 'Unique association identifier';
-COMMENT ON COLUMN provider_service.provider_id IS 'Provider ID';
-COMMENT ON COLUMN provider_service.service_id IS 'Service ID';
-COMMENT ON COLUMN provider_service.is_active IS 'Whether the association is active';
 
 -- ---------------------------------------------------------------------------
 -- 2.5 Appointments Table (appointments)
@@ -136,17 +107,6 @@ CREATE TABLE appointments (
     CONSTRAINT check_appointment_time CHECK (end_time > start_time),
     CONSTRAINT check_appointment_status CHECK (status IN ('CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'))
 );
-
-COMMENT ON TABLE appointments IS 'Appointments table - stores all appointment records';
-COMMENT ON COLUMN appointments.id IS 'Unique appointment identifier';
-COMMENT ON COLUMN appointments.client_id IS 'Client ID';
-COMMENT ON COLUMN appointments.provider_service_id IS 'Provider-Service association ID';
-COMMENT ON COLUMN appointments.start_time IS 'Start time (Unix timestamp in seconds, contains both date and time)';
-COMMENT ON COLUMN appointments.end_time IS 'End time (Unix timestamp in seconds, contains both date and time)';
-COMMENT ON COLUMN appointments.status IS 'Appointment status: CONFIRMED, CANCELLED, COMPLETED, NO_SHOW';
-COMMENT ON COLUMN appointments.notes IS 'Client notes';
-COMMENT ON COLUMN appointments.cancellation_reason IS 'Cancellation reason';
-COMMENT ON COLUMN appointments.cancelled_at IS 'Cancellation timestamp (Unix timestamp in seconds)';
 
 -- Create partial unique index (excluding cancelled appointments)
 CREATE UNIQUE INDEX uk_appointments_time_slot 
@@ -174,8 +134,6 @@ CREATE TRIGGER trg_check_availability_duplicates
     BEFORE INSERT OR UPDATE OF availability ON provider
     FOR EACH ROW
     EXECUTE FUNCTION check_availability_no_duplicates();
-
-COMMENT ON FUNCTION check_availability_no_duplicates() IS 'Validates that availability array has no duplicate day numbers';
 
 -- ============================================================================
 -- 3. CREATE INDEXES
@@ -359,53 +317,5 @@ INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_ti
 
 -- Reset appointments sequence
 SELECT setval('appointments_id_seq', (SELECT MAX(id) FROM appointments));
-
-
--- ============================================================================
--- QUERY EXAMPLES FOR AVAILABILITY (INTEGER ARRAY)
--- ============================================================================
-
--- Example 1: Find providers available on Monday (day 1)
--- SELECT * FROM provider WHERE 1 = ANY(availability) AND is_active = TRUE;
-
--- Example 2: Find providers available on weekends (Saturday=6 or Sunday=7)
--- SELECT * FROM provider WHERE availability && ARRAY[6,7] AND is_active = TRUE;
-
--- Example 3: Find providers available on both Monday AND Friday (days 1 and 5)
--- SELECT * FROM provider WHERE availability @> ARRAY[1,5] AND is_active = TRUE;
-
--- Example 4: Find providers available on Monday OR Friday
--- SELECT * FROM provider WHERE availability && ARRAY[1,5] AND is_active = TRUE;
-
--- Example 5: Count work days for each provider
--- SELECT id, first_name, last_name, array_length(availability, 1) as work_days 
--- FROM provider ORDER BY work_days DESC;
-
--- Example 6: List all available days for a specific provider (formatted)
--- SELECT id, first_name, last_name,
---        CASE WHEN 1 = ANY(availability) THEN 'Mon ' ELSE '' END ||
---        CASE WHEN 2 = ANY(availability) THEN 'Tue ' ELSE '' END ||
---        CASE WHEN 3 = ANY(availability) THEN 'Wed ' ELSE '' END ||
---        CASE WHEN 4 = ANY(availability) THEN 'Thu ' ELSE '' END ||
---        CASE WHEN 5 = ANY(availability) THEN 'Fri ' ELSE '' END ||
---        CASE WHEN 6 = ANY(availability) THEN 'Sat ' ELSE '' END ||
---        CASE WHEN 7 = ANY(availability) THEN 'Sun' ELSE '' END AS available_days
--- FROM provider WHERE id = 1;
-
--- Example 7: Find providers with specific availability pattern
--- SELECT * FROM provider WHERE availability = ARRAY[1,2,3,4,5]; -- Exactly Mon-Fri
-
--- Example 8: Add a day to provider's availability (e.g., add Sunday=7)
--- UPDATE provider SET availability = array_append(availability, 7) WHERE id = 1;
-
--- Example 9: Remove a day from provider's availability (e.g., remove Saturday=6)
--- UPDATE provider SET availability = array_remove(availability, 6) WHERE id = 1;
-
--- Example 10: Get all unique working days across all providers
--- SELECT DISTINCT unnest(availability) as day_number FROM provider ORDER BY day_number;
-
--- ============================================================================
--- END OF SCRIPT
--- ============================================================================
 
 

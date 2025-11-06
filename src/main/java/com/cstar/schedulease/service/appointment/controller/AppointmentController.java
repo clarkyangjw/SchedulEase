@@ -38,7 +38,7 @@ public class AppointmentController {
             return ResponseEntity.badRequest().build();
         }
         
-        AppointmentStatus status = AppointmentStatus.fromValue(statusStr);
+        AppointmentStatus status = AppointmentStatus.fromCode(statusStr);
         String cancellationReason = request.get("cancellationReason");
         
         AppointmentDTO updated = appointmentService.updateAppointmentStatus(id, status, cancellationReason);
@@ -68,7 +68,7 @@ public class AppointmentController {
         }
         
         if (status != null) {
-            AppointmentStatus appointmentStatus = AppointmentStatus.fromValue(status);
+            AppointmentStatus appointmentStatus = AppointmentStatus.fromCode(status);
             return ResponseEntity.ok(appointmentService.getAppointmentsByStatus(appointmentStatus));
         }
         

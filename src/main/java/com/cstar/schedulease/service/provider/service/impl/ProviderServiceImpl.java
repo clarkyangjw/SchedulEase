@@ -33,6 +33,7 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         provider.setFirstName(dto.getFirstName());
         provider.setLastName(dto.getLastName());
         provider.setDescription(dto.getDescription());
+        provider.setAvailability(dto.getAvailability());
         provider.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         
         // Handle service associations
@@ -110,6 +111,9 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         if (dto.getDescription() != null) {
             provider.setDescription(dto.getDescription());
         }
+        if (dto.getAvailability() != null) {
+            provider.setAvailability(dto.getAvailability());
+        }
         if (dto.getIsActive() != null) {
             provider.setIsActive(dto.getIsActive());
         }
@@ -153,6 +157,7 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         dto.setFirstName(provider.getFirstName());
         dto.setLastName(provider.getLastName());
         dto.setDescription(provider.getDescription());
+        dto.setAvailability(provider.getAvailability());
         dto.setIsActive(provider.getIsActive());
         
         // Convert provider services to service DTOs

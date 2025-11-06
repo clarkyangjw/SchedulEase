@@ -5,8 +5,7 @@ import com.fasterxml.jackson.annotation.JsonValue;
 
 public enum Category {
     HAIRCUT("HAIRCUT", "Haircut"),
-    MASSAGE("MASSAGE", "Massage"),
-    BEAUTY("BEAUTY", "Beauty");
+    MASSAGE("MASSAGE", "Massage");
 
     private final String code;
     private final String displayName;

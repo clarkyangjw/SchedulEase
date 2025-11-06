@@ -1,31 +1,23 @@
 package com.cstar.schedulease.service.provider.entity;
 
+import com.cstar.schedulease.common.entity.BaseUser;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "provider")
 @Data
+@EqualsAndHashCode(callSuper = true)
 @NoArgsConstructor
 @AllArgsConstructor
-public class Provider {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @NotNull(message = "First name cannot be null")
-    @Size(min = 1, max = 100, message = "First name must be between 1 and 100 characters")
-    @Column(name = "first_name", nullable = false, length = 100)
-    private String firstName;
-
-    @NotNull(message = "Last name cannot be null")
-    @Size(min = 1, max = 100, message = "Last name must be between 1 and 100 characters")
-    @Column(name = "last_name", nullable = false, length = 100)
-    private String lastName;
+public class Provider extends BaseUser {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
@@ -34,7 +26,6 @@ public class Provider {
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
 
-    public String getFullName() {
-        return firstName + " " + lastName;
-    }
+    @OneToMany(mappedBy = "provider", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    private List<ProviderService> providerServices = new ArrayList<>();
 }

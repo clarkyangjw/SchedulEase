@@ -1,7 +1,6 @@
 package com.cstar.schedulease.service.provider.controller;
 
 import com.cstar.schedulease.service.provider.dto.ProviderDTO;
-import com.cstar.schedulease.service.provider.dto.ProviderListDTO;
 import com.cstar.schedulease.service.provider.service.ProviderService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,10 +28,10 @@ public class ProviderController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ProviderListDTO>> getAllProviders(
+    public ResponseEntity<List<ProviderDTO>> getAllProviders(
             @RequestParam(required = false) Boolean activeOnly) {
         log.info("REST request to get all Providers, activeOnly: {}", activeOnly);
-        List<ProviderListDTO> providers = providerService.getAllProviders(activeOnly);
+        List<ProviderDTO> providers = providerService.getAllProviders(activeOnly);
         return ResponseEntity.ok(providers);
     }
 

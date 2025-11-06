@@ -166,16 +166,21 @@ CREATE INDEX idx_appointments_status ON appointments(status);
 -- 4.1 Insert Provider Data (Providers)
 -- ---------------------------------------------------------------------------
 INSERT INTO provider (id, first_name, last_name, description, availability, is_active) VALUES
+-- Hairstylists
 (1, 'Emma', 'Zhang', 'Senior hairstylist specializing in various hairstyle designs and coloring techniques, 10 years of experience', 
- ARRAY[1,2,3,4,5,6], TRUE), -- Monday to Saturday
-(2, 'Sophia', 'Li', 'Professional beautician providing facial care and skin care services, 8 years of experience', 
- ARRAY[1,2,3,4,5], TRUE), -- Monday to Friday
-(3, 'Michael', 'Wang', 'Massage therapist specializing in Chinese massage and sports rehabilitation, 12 years of experience', 
- ARRAY[2,3,4,5,6,7], TRUE), -- Tuesday to Sunday
-(4, 'Olivia', 'Zhao', 'Senior hairstylist focusing on fashion coloring and perming, 6 years of experience', 
- ARRAY[1,3,4,5,6], TRUE), -- Monday, Wednesday to Saturday
+ ARRAY[1,2,3,4,5,6], TRUE),
+(2, 'Olivia', 'Zhao', 'Professional hairstylist focusing on fashion coloring and perming, 6 years of experience', 
+ ARRAY[1,3,4,5,6], TRUE),
+(3, 'Lucas', 'Martinez', 'Expert hairstylist specializing in modern cuts and styling, 8 years of experience',
+ ARRAY[2,3,4,5,6,7], TRUE),
+
+-- Massage Therapists
+(4, 'Michael', 'Wang', 'Massage therapist specializing in Chinese massage and sports rehabilitation, 12 years of experience', 
+ ARRAY[2,3,4,5,6,7], TRUE),
 (5, 'James', 'Chen', 'Professional massage technician providing deep tissue massage and relaxation therapy, 9 years of experience', 
- ARRAY[1,2,3,4,5,6,7], TRUE); -- All week
+ ARRAY[1,2,3,4,5,6,7], TRUE), 
+(6, 'Sophia', 'Li', 'Certified massage therapist specializing in therapeutic and relaxation massage, 7 years of experience',
+ ARRAY[1,2,3,4,5], TRUE); 
 
 -- Reset provider sequence
 SELECT setval('provider_id_seq', (SELECT MAX(id) FROM provider));
@@ -184,71 +189,57 @@ SELECT setval('provider_id_seq', (SELECT MAX(id) FROM provider));
 -- 4.2 Insert Service Data (Services)
 -- ---------------------------------------------------------------------------
 INSERT INTO service (id, name, description, category, duration, price, is_active) VALUES
--- HAIRCUT services
+-- HAIRCUT services (3 services)
 (1, 'Basic Haircut', 'Includes hair wash, haircut, and blow dry', 'HAIRCUT', 30, 50.00, TRUE),
 (2, 'Designer Haircut', 'Professional designer creates hairstyle based on face shape, includes wash, cut, and styling', 'HAIRCUT', 60, 120.00, TRUE),
-(3, 'Kids Haircut', 'Haircut service specially designed for children', 'HAIRCUT', 20, 35.00, TRUE),
-(4, 'Perm', 'Includes basic haircut and perm styling', 'HAIRCUT', 120, 280.00, TRUE),
-(5, 'Hair Coloring', 'Fashion hair coloring service, multiple colors available', 'HAIRCUT', 90, 200.00, TRUE),
+(3, 'Hair Coloring', 'Fashion hair coloring service, multiple colors available', 'HAIRCUT', 90, 200.00, TRUE),
 
--- BEAUTY services
-(6, 'Basic Facial', 'Deep cleansing, hydration, and mask treatment', 'BEAUTY', 45, 150.00, TRUE),
-(7, 'Premium Facial', 'Deep cleansing, serum infusion, mask, and massage', 'BEAUTY', 75, 280.00, TRUE),
-(8, 'Eye Treatment', 'Deep eye care treatment, reduces dark circles', 'BEAUTY', 30, 100.00, TRUE),
-(9, 'Manicure', 'Nail care, polish application, and nail art design', 'BEAUTY', 60, 80.00, TRUE),
-(10, 'Makeup Service', 'Professional makeup suitable for various occasions', 'BEAUTY', 45, 200.00, TRUE),
-
--- MASSAGE services
-(11, 'Full Body Massage', 'Full body deep relaxation massage, 60 minutes', 'MASSAGE', 60, 180.00, TRUE),
-(12, 'Back Massage', 'Deep tissue massage targeting back muscles', 'MASSAGE', 30, 100.00, TRUE),
-(13, 'Foot Massage', 'Foot reflexology massage, relaxes body and mind', 'MASSAGE', 45, 120.00, TRUE),
-(14, 'Neck & Shoulder Massage', 'Relieves neck and shoulder fatigue and pain', 'MASSAGE', 30, 90.00, TRUE),
-(15, 'Sports Recovery Massage', 'Professional therapy for sports injuries', 'MASSAGE', 90, 250.00, TRUE);
+-- MASSAGE services (3 services)
+(4, 'Full Body Massage', 'Full body deep relaxation massage, 60 minutes', 'MASSAGE', 60, 180.00, TRUE),
+(5, 'Back Massage', 'Deep tissue massage targeting back muscles', 'MASSAGE', 30, 100.00, TRUE),
+(6, 'Neck & Shoulder Massage', 'Relieves neck and shoulder fatigue and pain', 'MASSAGE', 30, 90.00, TRUE);
 
 -- Reset service sequence
 SELECT setval('service_id_seq', (SELECT MAX(id) FROM service));
 
 -- ---------------------------------------------------------------------------
 -- 4.3 Insert Provider-Service Association Data (Provider-Service Relationships)
+-- Each service has 2-3 providers to demonstrate client choice
 -- ---------------------------------------------------------------------------
 
--- Emma Zhang (Provider ID: 1) - Hairstylist
+-- Emma Zhang (Provider ID: 1) - Senior Hairstylist
 INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
 (1, 1, 1, TRUE),  -- Basic Haircut
 (2, 1, 2, TRUE),  -- Designer Haircut
-(3, 1, 4, TRUE),  -- Perm
-(4, 1, 5, TRUE);  -- Hair Coloring
+(3, 1, 3, TRUE);  -- Hair Coloring
 
--- Sophia Li (Provider ID: 2) - Beautician
+-- Olivia Zhao (Provider ID: 2) - Professional Hairstylist
 INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(5, 2, 6, TRUE),  -- Basic Facial
-(6, 2, 7, TRUE),  -- Premium Facial
-(7, 2, 8, TRUE),  -- Eye Treatment
-(8, 2, 9, TRUE),  -- Manicure
-(9, 2, 10, TRUE); -- Makeup Service
+(4, 2, 1, TRUE),  -- Basic Haircut
+(5, 2, 2, TRUE),  -- Designer Haircut
+(6, 2, 3, TRUE);  -- Hair Coloring
 
--- Michael Wang (Provider ID: 3) - Massage Therapist
+-- Lucas Martinez (Provider ID: 3) - Expert Hairstylist
 INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(10, 3, 11, TRUE), -- Full Body Massage
-(11, 3, 12, TRUE), -- Back Massage
-(12, 3, 13, TRUE), -- Foot Massage
-(13, 3, 14, TRUE), -- Neck & Shoulder Massage
-(14, 3, 15, TRUE); -- Sports Recovery Massage
+(7, 3, 1, TRUE),  -- Basic Haircut
+(8, 3, 2, TRUE);  -- Designer Haircut
 
--- Olivia Zhao (Provider ID: 4) - Senior Hairstylist
+-- Michael Wang (Provider ID: 4) - Massage Therapist
 INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(15, 4, 1, TRUE),  -- Basic Haircut
-(16, 4, 2, TRUE),  -- Designer Haircut
-(17, 4, 3, TRUE),  -- Kids Haircut
-(18, 4, 4, TRUE),  -- Perm
-(19, 4, 5, TRUE);  -- Hair Coloring
+(9, 4, 4, TRUE),  -- Full Body Massage
+(10, 4, 5, TRUE), -- Back Massage
+(11, 4, 6, TRUE); -- Neck & Shoulder Massage
 
--- James Chen (Provider ID: 5) - Massage Technician
+-- James Chen (Provider ID: 5) - Professional Massage Technician
 INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(20, 5, 11, TRUE), -- Full Body Massage
-(21, 5, 12, TRUE), -- Back Massage
-(22, 5, 13, TRUE), -- Foot Massage
-(23, 5, 14, TRUE); -- Neck & Shoulder Massage
+(12, 5, 4, TRUE), -- Full Body Massage
+(13, 5, 5, TRUE), -- Back Massage
+(14, 5, 6, TRUE); -- Neck & Shoulder Massage
+
+-- Sophia Li (Provider ID: 6) - Certified Massage Therapist
+INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
+(15, 6, 4, TRUE), -- Full Body Massage
+(16, 6, 6, TRUE); -- Neck & Shoulder Massage
 
 -- Reset provider_service sequence
 SELECT setval('provider_service_id_seq', (SELECT MAX(id) FROM provider_service));
@@ -277,43 +268,39 @@ SELECT setval('client_id_seq', (SELECT MAX(id) FROM client));
 
 -- Future appointments (CONFIRMED)
 INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes) VALUES
--- Appointments on October 24, 2025
-(1, 1, 1, 1729756800, 1729758600, 'CONFIRMED', 'Would like a shorter cut'),
-(2, 2, 6, 1729760400, 1729763100, 'CONFIRMED', 'First time visit, dry skin'),
-(3, 3, 11, 1729774800, 1729778400, 'CONFIRMED', 'Shoulder pain'),
-(4, 4, 2, 1729778400, 1729782000, 'CONFIRMED', 'Looking for a new hairstyle'),
-(5, 5, 13, 1729782000, 1729784700, 'CONFIRMED', NULL),
-
--- Appointments on October 25, 2025
-(6, 6, 5, 1729843200, 1729848600, 'CONFIRMED', 'Want brown color'),
-(7, 7, 7, 1729846800, 1729851300, 'CONFIRMED', 'Preparing for a party'),
-(8, 8, 12, 1729850400, 1729852200, 'CONFIRMED', 'Back discomfort'),
-(9, 9, 3, 1729861200, 1729862400, 'CONFIRMED', '5 year old child'),
-(10, 10, 14, 1729864800, 1729866600, 'CONFIRMED', 'Long hours at computer'),
-
--- Appointments on October 26, 2025
-(11, 1, 4, 1729929600, 1729936800, 'CONFIRMED', 'Want curly perm'),
-(12, 2, 8, 1729933200, 1729935000, 'CONFIRMED', 'Eye fatigue'),
-(13, 3, 15, 1729947600, 1729953000, 'CONFIRMED', 'Sports injury'),
-(14, 4, 9, 1729936800, 1729940400, 'CONFIRMED', 'Want French manicure'),
-(15, 5, 1, 1729951200, 1729953000, 'CONFIRMED', NULL);
-
+-- Appointments on November 7, 2025 (Tomorrow)
+(1, 1, 1, 1730995200, 1730997000, 'CONFIRMED', 'Would like a shorter cut'),  -- Emma: Basic Haircut, 9:00-9:30 AM
+(2, 2, 4, 1730998800, 1731002400, 'CONFIRMED', 'First time visit'),  -- Olivia: Basic Haircut, 10:00-10:30 AM
+(3, 3, 9, 1731006000, 1731009600, 'CONFIRMED', 'Shoulder pain'),  -- Michael: Full Body Massage, 12:00-1:00 PM
+(4, 4, 2, 1731009600, 1731013200, 'CONFIRMED', 'Looking for a new hairstyle'),  -- Emma: Designer Haircut, 1:00-2:00 PM
+(5, 5, 14, 1731013200, 1731015000, 'CONFIRMED', 'Neck and shoulder tension'),  -- James: Neck & Shoulder Massage, 2:00-2:30 PM
+-- Appointments on November 8, 2025
+(6, 6, 3, 1731081600, 1731087000, 'CONFIRMED', 'Want brown color'),  -- Emma: Hair Coloring, 9:00-10:30 AM
+(7, 7, 12, 1731085200, 1731088800, 'CONFIRMED', 'Full body relaxation'),  -- James: Full Body Massage, 10:00-11:00 AM
+(8, 8, 10, 1731088800, 1731090600, 'CONFIRMED', 'Back discomfort'),  -- Michael: Back Massage, 11:00-11:30 AM
+(9, 9, 7, 1731099600, 1731101400, 'CONFIRMED', 'Regular trim'),  -- Lucas: Basic Haircut, 2:00-2:30 PM
+(10, 10, 16, 1731103200, 1731105000, 'CONFIRMED', 'Long hours at computer'),  -- Sophia: Neck & Shoulder Massage, 3:00-3:30 PM
+-- Appointments on November 9, 2025
+(11, 1, 5, 1731168000, 1731171600, 'CONFIRMED', 'Special occasion styling'),  -- Olivia: Designer Haircut, 9:00-10:00 AM
+(12, 2, 15, 1731171600, 1731175200, 'CONFIRMED', 'Deep tissue massage'),  -- Sophia: Full Body Massage, 10:00-11:00 AM
+(13, 3, 8, 1731182400, 1731186000, 'CONFIRMED', 'Modern style cut'),  -- Lucas: Designer Haircut, 1:00-2:00 PM
+(14, 4, 13, 1731186000, 1731189600, 'CONFIRMED', 'Relaxation session'),  -- James: Full Body Massage, 2:00-3:00 PM
+(15, 5, 1, 1731189600, 1731191400, 'CONFIRMED', 'Quick trim'),  -- Emma: Basic Haircut, 3:00-3:30 PM
 -- Past appointments (COMPLETED)
-INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes) VALUES
-(16, 1, 1, 1729411200, 1729413000, 'COMPLETED', 'Very satisfied'),
-(17, 2, 6, 1729414800, 1729417500, 'COMPLETED', NULL),
-(18, 3, 11, 1729515600, 1729519200, 'COMPLETED', 'Excellent technique'),
-(19, 4, 2, 1729519200, 1729522800, 'COMPLETED', NULL),
-(20, 5, 13, 1729609200, 1729611900, 'COMPLETED', NULL);
+(16, 1, 1, 1730390400, 1730392200, 'COMPLETED', 'Very satisfied'),  -- Emma: Basic Haircut
+(17, 2, 9, 1730394000, 1730397600, 'COMPLETED', 'Excellent technique'),  -- Michael: Full Body Massage
+(18, 3, 4, 1730476800, 1730478600, 'COMPLETED', 'Great service'),  -- Olivia: Basic Haircut
+(19, 4, 2, 1730480400, 1730484000, 'COMPLETED', 'Love the new style'),  -- Emma: Designer Haircut
+(20, 5, 14, 1730570400, 1730572200, 'COMPLETED', 'Very relaxing');  -- James: Neck & Shoulder Massage
 
 -- Cancelled appointments (CANCELLED)
 INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes, cancellation_reason, cancelled_at) VALUES
-(21, 6, 5, 1729670400, 1729675800, 'CANCELLED', 'Want brown color', 'Emergency, need to reschedule', 1729623000),
-(22, 7, 7, 1729674000, 1729678500, 'CANCELLED', NULL, 'Client cancelled', 1729628400);
+(21, 6, 6, 1730649600, 1730654400, 'CANCELLED', 'Want highlights', 'Emergency, need to reschedule', 1730602200),  -- Olivia: Hair Coloring
+(22, 7, 12, 1730653200, 1730656800, 'CANCELLED', NULL, 'Client cancelled', 1730607600);  -- James: Full Body Massage
 
 -- No-show appointments (NO_SHOW)
 INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes) VALUES
-(23, 8, 12, 1729594800, 1729596600, 'NO_SHOW', NULL);
+(23, 8, 10, 1730556000, 1730557800, 'NO_SHOW', NULL);  -- Michael: Back Massage
 
 -- Reset appointments sequence
 SELECT setval('appointments_id_seq', (SELECT MAX(id) FROM appointments));

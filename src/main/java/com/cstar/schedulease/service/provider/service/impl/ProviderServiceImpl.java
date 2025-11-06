@@ -2,25 +2,28 @@ package com.cstar.schedulease.service.provider.service.impl;
 
 import com.cstar.schedulease.exception.ResourceNotFoundException;
 import com.cstar.schedulease.service.provider.dto.ProviderDTO;
-import com.cstar.schedulease.service.provider.dto.ProviderListDTO;
 import com.cstar.schedulease.service.provider.entity.Provider;
+import com.cstar.schedulease.service.provider.entity.ProviderService;
 import com.cstar.schedulease.service.provider.repository.ProviderRepository;
-import com.cstar.schedulease.service.provider.service.ProviderService;
+import com.cstar.schedulease.service.services.dto.ServiceDTO;
+import com.cstar.schedulease.service.services.entity.Service;
+import com.cstar.schedulease.service.services.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-@Service
+@org.springframework.stereotype.Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
-public class ProviderServiceImpl implements ProviderService {
+public class ProviderServiceImpl implements com.cstar.schedulease.service.provider.service.ProviderService {
 
     private final ProviderRepository providerRepository;
+    private final ServiceRepository serviceRepository;
 
     @Override
     public ProviderDTO createProvider(ProviderDTO dto) {
@@ -32,8 +35,29 @@ public class ProviderServiceImpl implements ProviderService {
         provider.setDescription(dto.getDescription());
         provider.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         
+        // Handle service associations
+        if (dto.getServiceIds() != null && !dto.getServiceIds().isEmpty()) {
+            List<ProviderService> providerServices = new ArrayList<>();
+            
+            for (Long serviceId : dto.getServiceIds()) {
+                Service service = serviceRepository.findById(serviceId)
+                    .orElseThrow(() -> ResourceNotFoundException.forId("Service", serviceId));
+                
+                ProviderService providerService = new ProviderService();
+                providerService.setProvider(provider);
+                providerService.setService(service);
+                providerService.setIsActive(true);
+                
+                providerServices.add(providerService);
+            }
+            
+            provider.setProviderServices(providerServices);
+        }
+        
         Provider savedProvider = providerRepository.save(provider);
-        log.info("Provider created successfully with id: {}", savedProvider.getId());
+        log.info("Provider created successfully with id: {} and {} services", 
+            savedProvider.getId(), 
+            dto.getServiceIds() != null ? dto.getServiceIds().size() : 0);
         
         return convertToDTO(savedProvider);
     }
@@ -51,7 +75,7 @@ public class ProviderServiceImpl implements ProviderService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<ProviderListDTO> getAllProviders(Boolean activeOnly) {
+    public List<ProviderDTO> getAllProviders(Boolean activeOnly) {
         log.info("Fetching all providers, activeOnly: {}", activeOnly);
         
         List<Provider> providers;
@@ -66,7 +90,7 @@ public class ProviderServiceImpl implements ProviderService {
         
         log.info("Found {} providers", providers.size());
         return providers.stream()
-            .map(this::convertToListDTO)
+            .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
 
@@ -90,6 +114,33 @@ public class ProviderServiceImpl implements ProviderService {
             provider.setIsActive(dto.getIsActive());
         }
         
+        // Handle service associations update
+        if (dto.getServiceIds() != null) {
+            // Clear existing services (mark as inactive or remove)
+            if (provider.getProviderServices() != null) {
+                provider.getProviderServices().clear();
+            }
+            
+            // Add new services
+            if (!dto.getServiceIds().isEmpty()) {
+                List<ProviderService> providerServices = new ArrayList<>();
+                
+                for (Long serviceId : dto.getServiceIds()) {
+                    Service service = serviceRepository.findById(serviceId)
+                        .orElseThrow(() -> ResourceNotFoundException.forId("Service", serviceId));
+                    
+                    ProviderService providerService = new ProviderService();
+                    providerService.setProvider(provider);
+                    providerService.setService(service);
+                    providerService.setIsActive(true);
+                    
+                    providerServices.add(providerService);
+                }
+                
+                provider.setProviderServices(providerServices);
+            }
+        }
+        
         Provider updatedProvider = providerRepository.save(provider);
         log.info("Provider updated successfully with id: {}", updatedProvider.getId());
         
@@ -103,16 +154,30 @@ public class ProviderServiceImpl implements ProviderService {
         dto.setLastName(provider.getLastName());
         dto.setDescription(provider.getDescription());
         dto.setIsActive(provider.getIsActive());
+        
+        // Convert provider services to service DTOs
+        if (provider.getProviderServices() != null && !provider.getProviderServices().isEmpty()) {
+            List<ServiceDTO> serviceDTOs = provider.getProviderServices().stream()
+                .filter(ps -> ps.getIsActive()) // Only include active provider-service relationships
+                .map(ProviderService::getService)
+                .filter(service -> service.getIsActive()) // Only include active services
+                .map(this::convertServiceToDTO)
+                .collect(Collectors.toList());
+            dto.setServices(serviceDTOs);
+        }
+        
         return dto;
     }
-
-    private ProviderListDTO convertToListDTO(Provider provider) {
-        ProviderListDTO dto = new ProviderListDTO();
-        dto.setId(provider.getId());
-        dto.setFullName(provider.getFullName());
-        dto.setDescription(provider.getDescription());
-        dto.setIsActive(provider.getIsActive());
-        dto.setServiceCount(0);
+    
+    private ServiceDTO convertServiceToDTO(Service service) {
+        ServiceDTO dto = new ServiceDTO();
+        dto.setId(service.getId());
+        dto.setName(service.getName());
+        dto.setDescription(service.getDescription());
+        dto.setCategory(service.getCategory());
+        dto.setDuration(service.getDuration());
+        dto.setPrice(service.getPrice());
+        dto.setIsActive(service.getIsActive());
         return dto;
     }
 }

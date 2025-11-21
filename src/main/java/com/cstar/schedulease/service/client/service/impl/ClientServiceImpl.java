@@ -83,6 +83,17 @@ public class ClientServiceImpl implements ClientService {
         return convertToDTO(updatedClient);
     }
 
+    @Override
+    public void deleteClient(Long id) {
+        log.info("Deleting client with id: {}", id);
+        
+        Client client = clientRepository.findById(id)
+            .orElseThrow(() -> ResourceNotFoundException.forId("Client", id));
+        
+        clientRepository.delete(client);
+        log.info("Client deleted successfully with id: {}", id);
+    }
+
     private ClientDTO convertToDTO(Client client) {
         ClientDTO dto = new ClientDTO();
         dto.setId(client.getId());

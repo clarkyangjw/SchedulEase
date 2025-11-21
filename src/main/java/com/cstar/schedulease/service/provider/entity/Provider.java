@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
 
 
 @Entity
@@ -21,9 +20,6 @@ public class Provider extends BaseUser {
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
-
-    @Column(name = "availability", columnDefinition = "INTEGER[]")
-    private List<Integer> availability;
 
     @NotNull(message = "Active status cannot be null")
     @Column(name = "is_active", nullable = false)

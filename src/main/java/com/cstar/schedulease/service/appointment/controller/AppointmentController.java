@@ -53,29 +53,13 @@ public class AppointmentController {
 
     @GetMapping
     public ResponseEntity<List<AppointmentDTO>> getAllAppointments(
-            @RequestParam(required = false) Long clientId,
-            @RequestParam(required = false) Long providerId,
-            @RequestParam(required = false) String status,
             @RequestParam(required = false) Long startTime,
             @RequestParam(required = false) Long endTime) {
-        
-        if (clientId != null) {
-            return ResponseEntity.ok(appointmentService.getAppointmentsByClientId(clientId));
-        }
-        
-        if (providerId != null) {
-            return ResponseEntity.ok(appointmentService.getAppointmentsByProviderId(providerId));
-        }
-        
-        if (status != null) {
-            AppointmentStatus appointmentStatus = AppointmentStatus.fromCode(status);
-            return ResponseEntity.ok(appointmentService.getAppointmentsByStatus(appointmentStatus));
-        }
-        
+        // If time range parameters are provided, filter by time range
         if (startTime != null && endTime != null) {
             return ResponseEntity.ok(appointmentService.getAppointmentsByTimeRange(startTime, endTime));
         }
-        
+        // Otherwise return all appointments
         return ResponseEntity.ok(appointmentService.getAllAppointments());
     }
 

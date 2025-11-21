@@ -47,5 +47,12 @@ public class ClientController {
         ClientDTO updatedClient = clientService.updateClient(id, dto);
         return ResponseEntity.ok(updatedClient);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteClient(@PathVariable Long id) {
+        log.info("REST request to delete Client with id: {}", id);
+        clientService.deleteClient(id);
+        return ResponseEntity.noContent().build();
+    }
 }
 

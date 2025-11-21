@@ -45,7 +45,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
     );
     
     @Query("SELECT a FROM Appointment a " +
-           "WHERE a.startTime >= :startTime AND (a.startTime + a.service.duration * 60) <= :endTime " +
+           "WHERE a.startTime < :endTime AND (a.startTime + a.service.duration * 60) > :startTime " +
            "ORDER BY a.startTime ASC")
     List<Appointment> findByTimeRange(
         @Param("startTime") Long startTime,

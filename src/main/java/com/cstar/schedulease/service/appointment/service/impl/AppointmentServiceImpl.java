@@ -10,11 +10,10 @@ import com.cstar.schedulease.service.client.entity.Client;
 import com.cstar.schedulease.service.client.repository.ClientRepository;
 import com.cstar.schedulease.service.provider.dto.ProviderDTO;
 import com.cstar.schedulease.service.provider.entity.Provider;
-import com.cstar.schedulease.service.provider.entity.ProviderService;
 import com.cstar.schedulease.service.provider.repository.ProviderRepository;
-import com.cstar.schedulease.service.provider.repository.ProviderServiceRepository;
 import com.cstar.schedulease.service.services.dto.ServiceDTO;
 import com.cstar.schedulease.service.services.entity.Service;
+import com.cstar.schedulease.service.services.repository.ServiceRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,7 +28,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final ClientRepository clientRepository;
     private final ProviderRepository providerRepository;
-    private final ProviderServiceRepository providerServiceRepository;
+    private final ServiceRepository serviceRepository;
 
     @Override
     @Transactional
@@ -37,17 +36,23 @@ public class AppointmentServiceImpl implements AppointmentService {
         Client client = clientRepository.findById(appointmentDTO.getClientId())
             .orElseThrow(() -> new EntityNotFoundException("Client not found with id: " + appointmentDTO.getClientId()));
 
-        ProviderService providerService = providerServiceRepository.findById(appointmentDTO.getProviderServiceId())
-            .orElseThrow(() -> new EntityNotFoundException("Provider service not found with id: " + appointmentDTO.getProviderServiceId()));
+        Provider provider = providerRepository.findById(appointmentDTO.getProviderId())
+            .orElseThrow(() -> new EntityNotFoundException("Provider not found with id: " + appointmentDTO.getProviderId()));
 
-        if (appointmentDTO.getEndTime() <= appointmentDTO.getStartTime()) {
-            throw new IllegalArgumentException("End time must be after start time");
+        Service service = serviceRepository.findById(appointmentDTO.getServiceId())
+            .orElseThrow(() -> new EntityNotFoundException("Service not found with id: " + appointmentDTO.getServiceId()));
+
+        if (service.getDuration() == null || service.getDuration() <= 0) {
+            throw new IllegalArgumentException("Service duration must be greater than 0");
         }
 
+        Long calculatedEndTime = appointmentDTO.getStartTime() + service.getDuration() * 60L;
+
         List<Appointment> conflicts = appointmentRepository.findConflictingAppointments(
-            appointmentDTO.getProviderServiceId(),
+            appointmentDTO.getProviderId(),
+            appointmentDTO.getServiceId(),
             appointmentDTO.getStartTime(),
-            appointmentDTO.getEndTime()
+            calculatedEndTime
         );
 
         if (!conflicts.isEmpty()) {
@@ -56,9 +61,9 @@ public class AppointmentServiceImpl implements AppointmentService {
 
         Appointment appointment = new Appointment();
         appointment.setClient(client);
-        appointment.setProviderService(providerService);
+        appointment.setProvider(provider);
+        appointment.setService(service);
         appointment.setStartTime(appointmentDTO.getStartTime());
-        appointment.setEndTime(appointmentDTO.getEndTime());
         appointment.setStatus(AppointmentStatus.CONFIRMED);
         appointment.setNotes(appointmentDTO.getNotes());
 
@@ -76,7 +81,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         
         if (status == AppointmentStatus.CANCELLED) {
             appointment.setCancellationReason(cancellationReason);
-            appointment.setCancelledAt(System.currentTimeMillis() / 1000);
         }
 
         Appointment updated = appointmentRepository.save(appointment);
@@ -110,7 +114,7 @@ public class AppointmentServiceImpl implements AppointmentService {
     @Override
     @Transactional(readOnly = true)
     public List<AppointmentDTO> getAppointmentsByProviderId(Long providerId) {
-        return appointmentRepository.findByProviderServiceProviderId(providerId).stream()
+        return appointmentRepository.findByProviderId(providerId).stream()
             .map(this::convertToDTO)
             .collect(Collectors.toList());
     }
@@ -144,11 +148,15 @@ public class AppointmentServiceImpl implements AppointmentService {
         AppointmentDTO dto = new AppointmentDTO();
         dto.setId(appointment.getId());
         dto.setStartTime(appointment.getStartTime());
-        dto.setEndTime(appointment.getEndTime());
+        
+        Service service = appointment.getService();
+        Integer serviceDuration = service.getDuration();
+        dto.setDuration(serviceDuration);
+        dto.setEndTime(appointment.getStartTime() + serviceDuration * 60L);
+        
         dto.setStatus(appointment.getStatus());
         dto.setNotes(appointment.getNotes());
         dto.setCancellationReason(appointment.getCancellationReason());
-        dto.setCancelledAt(appointment.getCancelledAt());
 
         Client client = appointment.getClient();
         ClientDTO clientDTO = new ClientDTO();
@@ -158,8 +166,7 @@ public class AppointmentServiceImpl implements AppointmentService {
         clientDTO.setPhone(client.getPhone());
         dto.setClient(clientDTO);
 
-        ProviderService providerService = appointment.getProviderService();
-        Provider provider = providerService.getProvider();
+        Provider provider = appointment.getProvider();
         ProviderDTO providerDTO = new ProviderDTO();
         providerDTO.setId(provider.getId());
         providerDTO.setFirstName(provider.getFirstName());
@@ -168,7 +175,6 @@ public class AppointmentServiceImpl implements AppointmentService {
         providerDTO.setIsActive(provider.getIsActive());
         dto.setProvider(providerDTO);
 
-        Service service = providerService.getService();
         ServiceDTO serviceDTO = new ServiceDTO();
         serviceDTO.setId(service.getId());
         serviceDTO.setName(service.getName());

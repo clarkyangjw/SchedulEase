@@ -8,8 +8,8 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
-import java.util.ArrayList;
 import java.util.List;
+
 
 @Entity
 @Table(name = "provider")
@@ -28,7 +28,4 @@ public class Provider extends BaseUser {
     @NotNull(message = "Active status cannot be null")
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
-
-    @OneToMany(mappedBy = "provider", fetch = FetchType.LAZY, cascade = CascadeType.ALL)
-    private List<ProviderService> providerServices = new ArrayList<>();
 }

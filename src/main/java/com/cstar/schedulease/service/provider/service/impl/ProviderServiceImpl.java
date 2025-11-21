@@ -3,11 +3,7 @@ package com.cstar.schedulease.service.provider.service.impl;
 import com.cstar.schedulease.exception.ResourceNotFoundException;
 import com.cstar.schedulease.service.provider.dto.ProviderDTO;
 import com.cstar.schedulease.service.provider.entity.Provider;
-import com.cstar.schedulease.service.provider.entity.ProviderService;
 import com.cstar.schedulease.service.provider.repository.ProviderRepository;
-import com.cstar.schedulease.service.services.dto.ServiceDTO;
-import com.cstar.schedulease.service.services.entity.Service;
-import com.cstar.schedulease.service.services.repository.ServiceRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +19,6 @@ import java.util.stream.Collectors;
 public class ProviderServiceImpl implements com.cstar.schedulease.service.provider.service.ProviderService {
 
     private final ProviderRepository providerRepository;
-    private final ServiceRepository serviceRepository;
 
     @Override
     public ProviderDTO createProvider(ProviderDTO dto) {
@@ -36,29 +31,11 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         provider.setAvailability(dto.getAvailability());
         provider.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
         
-        // Handle service associations
-        if (dto.getServiceIds() != null && !dto.getServiceIds().isEmpty()) {
-            List<ProviderService> providerServices = new ArrayList<>();
-            
-            for (Long serviceId : dto.getServiceIds()) {
-                Service service = serviceRepository.findById(serviceId)
-                    .orElseThrow(() -> ResourceNotFoundException.forId("Service", serviceId));
-                
-                ProviderService providerService = new ProviderService();
-                providerService.setProvider(provider);
-                providerService.setService(service);
-                providerService.setIsActive(true);
-                
-                providerServices.add(providerService);
-            }
-            
-            provider.setProviderServices(providerServices);
-        }
+        // Note: Service associations are no longer managed through provider_service table
+        // Services are directly associated with appointments
         
         Provider savedProvider = providerRepository.save(provider);
-        log.info("Provider created successfully with id: {} and {} services", 
-            savedProvider.getId(), 
-            dto.getServiceIds() != null ? dto.getServiceIds().size() : 0);
+        log.info("Provider created successfully with id: {}", savedProvider.getId());
         
         return convertToDTO(savedProvider);
     }
@@ -118,32 +95,8 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
             provider.setIsActive(dto.getIsActive());
         }
         
-        // Handle service associations update
-        if (dto.getServiceIds() != null) {
-            // Clear existing services (mark as inactive or remove)
-            if (provider.getProviderServices() != null) {
-                provider.getProviderServices().clear();
-            }
-            
-            // Add new services
-            if (!dto.getServiceIds().isEmpty()) {
-                List<ProviderService> providerServices = new ArrayList<>();
-                
-                for (Long serviceId : dto.getServiceIds()) {
-                    Service service = serviceRepository.findById(serviceId)
-                        .orElseThrow(() -> ResourceNotFoundException.forId("Service", serviceId));
-                    
-                    ProviderService providerService = new ProviderService();
-                    providerService.setProvider(provider);
-                    providerService.setService(service);
-                    providerService.setIsActive(true);
-                    
-                    providerServices.add(providerService);
-                }
-                
-                provider.setProviderServices(providerServices);
-            }
-        }
+        // Note: Service associations are no longer managed through provider_service table
+        // Services are directly associated with appointments
         
         Provider updatedProvider = providerRepository.save(provider);
         log.info("Provider updated successfully with id: {}", updatedProvider.getId());
@@ -160,29 +113,10 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         dto.setAvailability(provider.getAvailability());
         dto.setIsActive(provider.getIsActive());
         
-        // Convert provider services to service DTOs
-        if (provider.getProviderServices() != null && !provider.getProviderServices().isEmpty()) {
-            List<ServiceDTO> serviceDTOs = provider.getProviderServices().stream()
-                .filter(ps -> ps.getIsActive()) // Only include active provider-service relationships
-                .map(ProviderService::getService)
-                .filter(service -> service.getIsActive()) // Only include active services
-                .map(this::convertServiceToDTO)
-                .collect(Collectors.toList());
-            dto.setServices(serviceDTOs);
-        }
+        // Note: Services are no longer managed through provider_service table
+        // Services list is set to empty as they are now directly associated with appointments
+        dto.setServices(new ArrayList<>());
         
-        return dto;
-    }
-    
-    private ServiceDTO convertServiceToDTO(Service service) {
-        ServiceDTO dto = new ServiceDTO();
-        dto.setId(service.getId());
-        dto.setName(service.getName());
-        dto.setDescription(service.getDescription());
-        dto.setCategory(service.getCategory());
-        dto.setDuration(service.getDuration());
-        dto.setPrice(service.getPrice());
-        dto.setIsActive(service.getIsActive());
         return dto;
     }
 }

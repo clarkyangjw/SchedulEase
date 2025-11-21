@@ -20,10 +20,12 @@ SchedulEase - Online Appointment System Database Design
 -- ============================================================================
 
 DROP TABLE IF EXISTS appointments CASCADE;
-DROP TABLE IF EXISTS provider_service CASCADE;
 DROP TABLE IF EXISTS service CASCADE;
 DROP TABLE IF EXISTS provider CASCADE;
 DROP TABLE IF EXISTS client CASCADE;
+
+DROP TRIGGER IF EXISTS trg_check_availability_duplicates ON provider;
+DROP FUNCTION IF EXISTS check_availability_no_duplicates();
 
 -- ============================================================================
 -- 2 CREATE TABLES
@@ -36,7 +38,7 @@ CREATE TABLE client (
     id BIGSERIAL PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    phone VARCHAR(20) NOT NULL
+    phone VARCHAR(15) NOT NULL
 );
 
 -- ---------------------------------------------------------------------------
@@ -68,63 +70,29 @@ CREATE TABLE service (
 );
 
 -- ---------------------------------------------------------------------------
--- 2.4 Provider-Service Association Table
--- ---------------------------------------------------------------------------
-CREATE TABLE provider_service (
-    id BIGSERIAL PRIMARY KEY,
-    provider_id BIGINT NOT NULL,
-    service_id BIGINT NOT NULL,
-    is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    CONSTRAINT fk_provider_service_provider FOREIGN KEY (provider_id) 
-        REFERENCES provider(id) ON DELETE CASCADE,
-    CONSTRAINT fk_provider_service_service FOREIGN KEY (service_id) 
-        REFERENCES service(id) ON DELETE CASCADE,
-    CONSTRAINT uk_provider_service UNIQUE (provider_id, service_id)
-);
-
--- ---------------------------------------------------------------------------
--- 2.5 Appointments Table
+-- 2.4 Appointments Table
 -- ---------------------------------------------------------------------------
 CREATE TABLE appointments (
     id BIGSERIAL PRIMARY KEY,
     client_id BIGINT NOT NULL,
-    provider_service_id BIGINT NOT NULL,
+    provider_id BIGINT NOT NULL,
+    service_id BIGINT NOT NULL,
     start_time BIGINT NOT NULL,
-    end_time BIGINT NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'CONFIRMED',
     notes TEXT,
     cancellation_reason TEXT,
-    cancelled_at BIGINT,
     CONSTRAINT fk_appointments_client FOREIGN KEY (client_id) 
         REFERENCES client(id) ON DELETE CASCADE,
-    CONSTRAINT fk_appointments_provider_service FOREIGN KEY (provider_service_id) 
-        REFERENCES provider_service(id) ON DELETE CASCADE,
-    CONSTRAINT check_appointment_time CHECK (end_time > start_time),
+    CONSTRAINT fk_appointments_provider FOREIGN KEY (provider_id) 
+        REFERENCES provider(id) ON DELETE CASCADE,
+    CONSTRAINT fk_appointments_service FOREIGN KEY (service_id) 
+        REFERENCES service(id) ON DELETE CASCADE,
     CONSTRAINT check_appointment_status CHECK (status IN ('CONFIRMED', 'CANCELLED', 'COMPLETED', 'NO_SHOW'))
 );
 
 CREATE UNIQUE INDEX uk_appointments_time_slot 
-    ON appointments(provider_service_id, start_time) 
+    ON appointments(provider_id, service_id, start_time) 
     WHERE status NOT IN ('CANCELLED');
-
--- ============================================================================
--- 2.6 Trigger Function
--- ============================================================================
-
-CREATE OR REPLACE FUNCTION check_availability_no_duplicates()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF array_length(NEW.availability, 1) != (SELECT COUNT(DISTINCT x) FROM unnest(NEW.availability) x) THEN
-        RAISE EXCEPTION 'Availability array cannot contain duplicate days';
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_check_availability_duplicates
-    BEFORE INSERT OR UPDATE OF availability ON provider
-    FOR EACH ROW
-    EXECUTE FUNCTION check_availability_no_duplicates();
 
 -- ============================================================================
 -- 3. CREATE INDEXES
@@ -136,12 +104,9 @@ CREATE INDEX idx_provider_availability ON provider USING GIN(availability);
 CREATE INDEX idx_service_active ON service(is_active);
 CREATE INDEX idx_service_category ON service(category);
 
-CREATE INDEX idx_provider_service_provider ON provider_service(provider_id);
-CREATE INDEX idx_provider_service_service ON provider_service(service_id);
-CREATE INDEX idx_provider_service_active ON provider_service(is_active);
-
 CREATE INDEX idx_appointments_client ON appointments(client_id);
-CREATE INDEX idx_appointments_provider_service ON appointments(provider_service_id);
+CREATE INDEX idx_appointments_provider ON appointments(provider_id);
+CREATE INDEX idx_appointments_service ON appointments(service_id);
 CREATE INDEX idx_appointments_start_time ON appointments(start_time);
 CREATE INDEX idx_appointments_status ON appointments(status);
 
@@ -176,88 +141,57 @@ INSERT INTO service (id, name, description, category, duration, price, is_active
 SELECT setval('service_id_seq', (SELECT MAX(id) FROM service));
 
 -- ---------------------------------------------------------------------------
--- 4.3 Provider-Service Association Data
--- ---------------------------------------------------------------------------
-
-INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(1, 1, 1, TRUE),
-(2, 1, 2, TRUE),
-(3, 1, 3, TRUE);
-
-INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(4, 2, 1, TRUE),
-(5, 2, 2, TRUE),
-(6, 2, 3, TRUE);
-
-INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(7, 3, 1, TRUE),
-(8, 3, 2, TRUE);
-
-INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(9, 4, 4, TRUE),
-(10, 4, 5, TRUE),
-(11, 4, 6, TRUE);
-
-INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(12, 5, 4, TRUE),
-(13, 5, 5, TRUE),
-(14, 5, 6, TRUE);
-
-INSERT INTO provider_service (id, provider_id, service_id, is_active) VALUES
-(15, 6, 4, TRUE),
-(16, 6, 6, TRUE);
-
-SELECT setval('provider_service_id_seq', (SELECT MAX(id) FROM provider_service));
-
--- ---------------------------------------------------------------------------
--- 4.4 Client Data
+-- 4.3 Client Data
 -- ---------------------------------------------------------------------------
 INSERT INTO client (id, first_name, last_name, phone) VALUES
-(1, 'John', 'Smith', '416-555-0001'),
-(2, 'Emily', 'Johnson', '416-555-0002'),
-(3, 'David', 'Brown', '416-555-0003'),
-(4, 'Sarah', 'Davis', '416-555-0004'),
-(5, 'Robert', 'Wilson', '416-555-0005'),
-(6, 'Jessica', 'Taylor', '416-555-0006'),
-(7, 'William', 'Anderson', '416-555-0007'),
-(8, 'Jennifer', 'Thomas', '416-555-0008'),
-(9, 'Daniel', 'Martinez', '416-555-0009'),
-(10, 'Lisa', 'Garcia', '416-555-0010');
+(1, 'John', 'Smith', '4165550001'),
+(2, 'Emily', 'Johnson', '4165550002'),
+(3, 'David', 'Brown', '4165550003'),
+(4, 'Sarah', 'Davis', '4165550004'),
+(5, 'Robert', 'Wilson', '4165550005'),
+(6, 'Jessica', 'Taylor', '4165550006'),
+(7, 'William', 'Anderson', '4165550007'),
+(8, 'Jennifer', 'Thomas', '4165550008'),
+(9, 'Daniel', 'Martinez', '4165550009'),
+(10, 'Lisa', 'Garcia', '4165550010');
 
 SELECT setval('client_id_seq', (SELECT MAX(id) FROM client));
 
 -- ---------------------------------------------------------------------------
--- 4.5 Appointment Data
+-- 4.4 Appointment Data
+-- Using dates relative to today (CURRENT_DATE)
 -- ---------------------------------------------------------------------------
 
-INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes) VALUES
-(1, 1, 1, 1730995200, 1730997000, 'CONFIRMED', 'Would like a shorter cut'),
-(2, 2, 4, 1730998800, 1731002400, 'CONFIRMED', 'First time visit'),
-(3, 3, 9, 1731006000, 1731009600, 'CONFIRMED', 'Shoulder pain'),
-(4, 4, 2, 1731009600, 1731013200, 'CONFIRMED', 'Looking for a new hairstyle'),
-(5, 5, 14, 1731013200, 1731015000, 'CONFIRMED', 'Neck and shoulder tension'),
-(6, 6, 3, 1731081600, 1731087000, 'CONFIRMED', 'Want brown color'),
-(7, 7, 12, 1731085200, 1731088800, 'CONFIRMED', 'Full body relaxation'),
-(8, 8, 10, 1731088800, 1731090600, 'CONFIRMED', 'Back discomfort'),
-(9, 9, 7, 1731099600, 1731101400, 'CONFIRMED', 'Regular trim'),
-(10, 10, 16, 1731103200, 1731105000, 'CONFIRMED', 'Long hours at computer'),
-(11, 1, 5, 1731168000, 1731171600, 'CONFIRMED', 'Special occasion styling'),
-(12, 2, 15, 1731171600, 1731175200, 'CONFIRMED', 'Deep tissue massage'),
-(13, 3, 8, 1731182400, 1731186000, 'CONFIRMED', 'Modern style cut'),
-(14, 4, 13, 1731186000, 1731189600, 'CONFIRMED', 'Relaxation session'),
-(15, 5, 1, 1731189600, 1731191400, 'CONFIRMED', 'Quick trim'),
-(16, 1, 1, 1730390400, 1730392200, 'COMPLETED', 'Very satisfied'),
-(17, 2, 9, 1730394000, 1730397600, 'COMPLETED', 'Excellent technique'),
-(18, 3, 4, 1730476800, 1730478600, 'COMPLETED', 'Great service'),
-(19, 4, 2, 1730480400, 1730484000, 'COMPLETED', 'Love the new style'),
-(20, 5, 14, 1730570400, 1730572200, 'COMPLETED', 'Very relaxing');
+-- COMPLETED appointments (past dates: 3-5 days ago)
+INSERT INTO appointments (id, client_id, provider_id, service_id, start_time, status, notes) VALUES
+(1, 1, 1, 1, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '5 days' + TIME '09:00:00'))::BIGINT, 'COMPLETED', 'Very satisfied'),
+(2, 2, 4, 4, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '4 days' + TIME '14:00:00'))::BIGINT, 'COMPLETED', 'Excellent technique'),
+(3, 3, 2, 1, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '3 days' + TIME '10:30:00'))::BIGINT, 'COMPLETED', 'Great service');
 
-INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes, cancellation_reason, cancelled_at) VALUES
-(21, 6, 6, 1730649600, 1730654400, 'CANCELLED', 'Want highlights', 'Emergency, need to reschedule', 1730602200),
-(22, 7, 12, 1730653200, 1730656800, 'CANCELLED', NULL, 'Client cancelled', 1730607600);
+-- CANCELLED appointments (past dates: 2-3 days ago)
+INSERT INTO appointments (id, client_id, provider_id, service_id, start_time, status, notes, cancellation_reason) VALUES
+(4, 6, 1, 3, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '3 days' + TIME '15:00:00'))::BIGINT, 'CANCELLED', 'Want highlights', 'Emergency, need to reschedule'),
+(5, 7, 5, 4, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '2 days' + TIME '11:00:00'))::BIGINT, 'CANCELLED', NULL, 'Client cancelled');
 
-INSERT INTO appointments (id, client_id, provider_service_id, start_time, end_time, status, notes) VALUES
-(23, 8, 10, 1730556000, 1730557800, 'NO_SHOW', NULL);
+-- NO_SHOW appointments (past dates: 1-2 days ago)
+INSERT INTO appointments (id, client_id, provider_id, service_id, start_time, status, notes) VALUES
+(6, 8, 4, 5, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '2 days' + TIME '16:00:00'))::BIGINT, 'NO_SHOW', NULL),
+(7, 9, 3, 1, EXTRACT(EPOCH FROM (CURRENT_DATE - INTERVAL '1 day' + TIME '13:30:00'))::BIGINT, 'NO_SHOW', 'Regular trim');
+
+-- CONFIRMED appointments (today and future dates)
+INSERT INTO appointments (id, client_id, provider_id, service_id, start_time, status, notes) VALUES
+(8, 1, 1, 1, EXTRACT(EPOCH FROM (CURRENT_DATE + TIME '10:00:00'))::BIGINT, 'CONFIRMED', 'Would like a shorter cut'),
+(9, 2, 2, 1, EXTRACT(EPOCH FROM (CURRENT_DATE + TIME '14:30:00'))::BIGINT, 'CONFIRMED', 'First time visit'),
+(10, 3, 4, 4, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '1 day' + TIME '09:30:00'))::BIGINT, 'CONFIRMED', 'Shoulder pain'),
+(11, 4, 1, 2, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '1 day' + TIME '15:00:00'))::BIGINT, 'CONFIRMED', 'Looking for a new hairstyle'),
+(12, 5, 5, 6, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '2 days' + TIME '10:00:00'))::BIGINT, 'CONFIRMED', 'Neck and shoulder tension'),
+(13, 6, 1, 3, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '2 days' + TIME '14:00:00'))::BIGINT, 'CONFIRMED', 'Want brown color'),
+(14, 7, 5, 4, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '3 days' + TIME '11:00:00'))::BIGINT, 'CONFIRMED', 'Full body relaxation'),
+(15, 8, 4, 5, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '3 days' + TIME '16:00:00'))::BIGINT, 'CONFIRMED', 'Back discomfort'),
+(16, 9, 3, 1, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '4 days' + TIME '09:00:00'))::BIGINT, 'CONFIRMED', 'Regular trim'),
+(17, 10, 6, 6, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '4 days' + TIME '13:00:00'))::BIGINT, 'CONFIRMED', 'Long hours at computer'),
+(18, 1, 2, 2, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '5 days' + TIME '10:30:00'))::BIGINT, 'CONFIRMED', 'Special occasion styling'),
+(19, 2, 6, 4, EXTRACT(EPOCH FROM (CURRENT_DATE + INTERVAL '5 days' + TIME '14:00:00'))::BIGINT, 'CONFIRMED', 'Deep tissue massage');
 
 SELECT setval('appointments_id_seq', (SELECT MAX(id) FROM appointments));
 

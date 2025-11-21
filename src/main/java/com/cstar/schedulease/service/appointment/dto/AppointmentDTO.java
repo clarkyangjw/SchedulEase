@@ -24,14 +24,21 @@ public class AppointmentDTO {
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private Long clientId;
 
-    @NotNull(message = "Provider service ID is required", groups = Create.class)
+    @NotNull(message = "Provider ID is required", groups = Create.class)
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    private Long providerServiceId;
+    private Long providerId;
+
+    @NotNull(message = "Service ID is required", groups = Create.class)
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private Long serviceId;
 
     @NotNull(message = "Start time is required", groups = Create.class)
     private Long startTime;
 
-    @NotNull(message = "End time is required", groups = Create.class)
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
+    private Integer duration;
+
+    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private Long endTime;
 
     @NotNull(message = "Status is required", groups = Update.class)
@@ -40,9 +47,6 @@ public class AppointmentDTO {
     private String notes;
 
     private String cancellationReason;
-
-    @JsonProperty(access = JsonProperty.Access.READ_ONLY)
-    private Long cancelledAt;
 
     @JsonProperty(access = JsonProperty.Access.READ_ONLY)
     private ClientDTO client;

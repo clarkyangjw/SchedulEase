@@ -15,16 +15,16 @@ spring:
     # Google Cloud SQL PostgreSQL Configuration
     # ============================================================================
     datasource:
-        # Connect using public IP address
-        url: jdbc:postgresql://34.130.38.213:5432/schedulease
+        url: jdbc:postgresql://34.130.207.117:5432/schedulease
         username: postgres
         password: Postgres123!
         driver-class-name: org.postgresql.Driver
 
         # HikariCP connection pool configuration
+        # Optimized for standard server deployment
         hikari:
-            maximum-pool-size: 10
-            minimum-idle: 5
+            maximum-pool-size: 5 # Connection pool size for better performance
+            minimum-idle: 2 # Minimum idle connections
             connection-timeout: 30000
             idle-timeout: 600000
             max-lifetime: 1800000

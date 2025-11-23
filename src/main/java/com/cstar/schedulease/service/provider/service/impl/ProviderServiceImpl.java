@@ -1,5 +1,6 @@
 package com.cstar.schedulease.service.provider.service.impl;
 
+import com.cstar.schedulease.common.factory.ProviderFactory;
 import com.cstar.schedulease.exception.ResourceNotFoundException;
 import com.cstar.schedulease.service.provider.dto.ProviderDTO;
 import com.cstar.schedulease.service.provider.entity.Provider;
@@ -19,17 +20,13 @@ import java.util.stream.Collectors;
 public class ProviderServiceImpl implements com.cstar.schedulease.service.provider.service.ProviderService {
 
     private final ProviderRepository providerRepository;
+    private final ProviderFactory providerFactory;
 
     @Override
     public ProviderDTO createProvider(ProviderDTO dto) {
         log.info("Creating new provider: {} {}", dto.getFirstName(), dto.getLastName());
         
-        Provider provider = new Provider();
-        provider.setFirstName(dto.getFirstName());
-        provider.setLastName(dto.getLastName());
-        provider.setDescription(dto.getDescription());
-        provider.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
-        provider.setAvailability(dto.getAvailability() != null ? dto.getAvailability() : "");
+        Provider provider = providerFactory.createUser(dto);
         
         // Note: Service associations are no longer managed through provider_service table
         // Services are directly associated with appointments

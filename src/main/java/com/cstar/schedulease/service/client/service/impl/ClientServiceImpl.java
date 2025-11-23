@@ -1,5 +1,6 @@
 package com.cstar.schedulease.service.client.service.impl;
 
+import com.cstar.schedulease.common.factory.ClientFactory;
 import com.cstar.schedulease.exception.ResourceNotFoundException;
 import com.cstar.schedulease.service.client.dto.ClientDTO;
 import com.cstar.schedulease.service.client.entity.Client;
@@ -20,15 +21,13 @@ import java.util.stream.Collectors;
 public class ClientServiceImpl implements ClientService {
 
     private final ClientRepository clientRepository;
+    private final ClientFactory clientFactory;
 
     @Override
     public ClientDTO createClient(ClientDTO dto) {
         log.info("Creating new client: {} {}", dto.getFirstName(), dto.getLastName());
         
-        Client client = new Client();
-        client.setFirstName(dto.getFirstName());
-        client.setLastName(dto.getLastName());
-        client.setPhone(dto.getPhone());
+        Client client = clientFactory.createUser(dto);
         
         Client savedClient = clientRepository.save(client);
         log.info("Client created successfully with id: {}", savedClient.getId());

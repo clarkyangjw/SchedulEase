@@ -33,6 +33,9 @@ public class ProviderDTO {
 
     private Boolean isActive;
 
+    @Size(max = 20, message = "Availability must not exceed 20 characters")
+    private String availability;
+
     // For input: service IDs to associate with the provider
     @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
     private List<Long> serviceIds;

@@ -24,4 +24,7 @@ public class Provider extends BaseUser {
     @NotNull(message = "Active status cannot be null")
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;
+
+    @Column(name = "availability", length = 20)
+    private String availability;
 }

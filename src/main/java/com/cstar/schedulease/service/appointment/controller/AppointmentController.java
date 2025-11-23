@@ -3,6 +3,7 @@ package com.cstar.schedulease.service.appointment.controller;
 import com.cstar.schedulease.common.enums.AppointmentStatus;
 import com.cstar.schedulease.service.appointment.dto.AppointmentDTO;
 import com.cstar.schedulease.service.appointment.service.AppointmentService;
+import com.cstar.schedulease.service.provider.dto.ProviderDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -61,6 +62,14 @@ public class AppointmentController {
         }
         // Otherwise return all appointments
         return ResponseEntity.ok(appointmentService.getAllAppointments());
+    }
+
+    @GetMapping("/available-providers")
+    public ResponseEntity<List<ProviderDTO>> getAvailableProviders(
+            @RequestParam Long startTime,
+            @RequestParam Long serviceId) {
+        List<ProviderDTO> availableProviders = appointmentService.getAvailableProviders(startTime, serviceId);
+        return ResponseEntity.ok(availableProviders);
     }
 
     @DeleteMapping("/{id}")

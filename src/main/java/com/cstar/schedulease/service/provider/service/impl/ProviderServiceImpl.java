@@ -29,6 +29,7 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         provider.setLastName(dto.getLastName());
         provider.setDescription(dto.getDescription());
         provider.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        provider.setAvailability(dto.getAvailability() != null ? dto.getAvailability() : "");
         
         // Note: Service associations are no longer managed through provider_service table
         // Services are directly associated with appointments
@@ -90,6 +91,9 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         if (dto.getIsActive() != null) {
             provider.setIsActive(dto.getIsActive());
         }
+        if (dto.getAvailability() != null) {
+            provider.setAvailability(dto.getAvailability());
+        }
         
         // Note: Service associations are no longer managed through provider_service table
         // Services are directly associated with appointments
@@ -107,6 +111,7 @@ public class ProviderServiceImpl implements com.cstar.schedulease.service.provid
         dto.setLastName(provider.getLastName());
         dto.setDescription(provider.getDescription());
         dto.setIsActive(provider.getIsActive());
+        dto.setAvailability(provider.getAvailability());
         
         // Note: Services are no longer managed through provider_service table
         // Services list is set to empty as they are now directly associated with appointments

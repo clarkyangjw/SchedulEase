@@ -46,17 +46,55 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new IllegalArgumentException("Service duration must be greater than 0");
         }
 
+        // Check if provider is active
+        if (!provider.getIsActive()) {
+            throw new IllegalStateException("Provider is not active");
+        }
+
+        // Check if the appointment time is within provider's availability
+        if (provider.getAvailability() != null && !provider.getAvailability().trim().isEmpty()) {
+            // Convert start time (seconds since epoch) to day of week
+            // Java's DayOfWeek: MONDAY=1, TUESDAY=2, ..., SUNDAY=7
+            java.time.Instant instant = java.time.Instant.ofEpochSecond(appointmentDTO.getStartTime());
+            java.time.ZoneId zoneId = java.time.ZoneId.of("America/Toronto");
+            java.time.LocalDateTime localDateTime = java.time.LocalDateTime.ofInstant(instant, zoneId);
+            int dayOfWeek = localDateTime.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
+
+            // Parse provider availability (comma-separated day numbers: 1=Monday, 7=Sunday)
+            String[] availableDaysStr = provider.getAvailability().split(",");
+            boolean isAvailable = false;
+            for (String dayStr : availableDaysStr) {
+                try {
+                    int availableDay = Integer.parseInt(dayStr.trim());
+                    if (availableDay == dayOfWeek) {
+                        isAvailable = true;
+                        break;
+                    }
+                } catch (NumberFormatException e) {
+                    // Skip invalid day numbers
+                }
+            }
+
+            if (!isAvailable) {
+                throw new IllegalStateException("The appointment time is not within the provider's available days. Provider is available on: " + provider.getAvailability());
+            }
+        }
+
+        // Calculate the end time of the new appointment based on service duration
+        // Duration is stored in minutes, so multiply by 60 to get seconds
+        // Example: 9:30 start + 90min duration = 11:00 end time
         Long calculatedEndTime = appointmentDTO.getStartTime() + service.getDuration() * 60L;
 
+        // Check for conflicts: find any existing appointments for this provider
+        // that overlap with the new appointment's time slot (considering service duration)
         List<Appointment> conflicts = appointmentRepository.findConflictingAppointments(
             appointmentDTO.getProviderId(),
-            appointmentDTO.getServiceId(),
             appointmentDTO.getStartTime(),
             calculatedEndTime
         );
 
         if (!conflicts.isEmpty()) {
-            throw new IllegalStateException("Time slot is not available");
+            throw new IllegalStateException("Time slot is not available. The provider already has an appointment during this time period.");
         }
 
         Appointment appointment = new Appointment();
@@ -142,6 +180,77 @@ public class AppointmentServiceImpl implements AppointmentService {
             throw new EntityNotFoundException("Appointment not found with id: " + id);
         }
         appointmentRepository.deleteById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ProviderDTO> getAvailableProviders(Long startTime, Long serviceId) {
+        // Get service to determine duration
+        Service service = serviceRepository.findById(serviceId)
+            .orElseThrow(() -> new EntityNotFoundException("Service not found with id: " + serviceId));
+
+        if (service.getDuration() == null || service.getDuration() <= 0) {
+            throw new IllegalArgumentException("Service duration must be greater than 0");
+        }
+
+        // Calculate end time based on service duration
+        Long endTime = startTime + service.getDuration() * 60L;
+
+        // Get all active providers
+        List<Provider> allProviders = providerRepository.findByIsActiveTrue();
+
+        // Convert start time to day of week
+        java.time.Instant instant = java.time.Instant.ofEpochSecond(startTime);
+        java.time.ZoneId zoneId = java.time.ZoneId.of("America/Toronto");
+        java.time.LocalDateTime localDateTime = java.time.LocalDateTime.ofInstant(instant, zoneId);
+        int dayOfWeek = localDateTime.getDayOfWeek().getValue(); // 1=Monday, 7=Sunday
+
+        // Filter providers that are available
+        return allProviders.stream()
+            .filter(provider -> {
+                // Check if provider is available on this day of week
+                if (provider.getAvailability() != null && !provider.getAvailability().trim().isEmpty()) {
+                    String[] availableDaysStr = provider.getAvailability().split(",");
+                    boolean isAvailableOnDay = false;
+                    for (String dayStr : availableDaysStr) {
+                        try {
+                            int availableDay = Integer.parseInt(dayStr.trim());
+                            if (availableDay == dayOfWeek) {
+                                isAvailableOnDay = true;
+                                break;
+                            }
+                        } catch (NumberFormatException e) {
+                            // Skip invalid day numbers
+                        }
+                    }
+                    if (!isAvailableOnDay) {
+                        return false;
+                    }
+                }
+
+                // Check for time conflicts
+                List<Appointment> conflicts = appointmentRepository.findConflictingAppointments(
+                    provider.getId(),
+                    startTime,
+                    endTime
+                );
+
+                return conflicts.isEmpty();
+            })
+            .map(this::convertProviderToDTO)
+            .collect(Collectors.toList());
+    }
+
+    private ProviderDTO convertProviderToDTO(Provider provider) {
+        ProviderDTO dto = new ProviderDTO();
+        dto.setId(provider.getId());
+        dto.setFirstName(provider.getFirstName());
+        dto.setLastName(provider.getLastName());
+        dto.setDescription(provider.getDescription());
+        dto.setIsActive(provider.getIsActive());
+        dto.setAvailability(provider.getAvailability());
+        dto.setServices(new java.util.ArrayList<>()); // Services are not managed through provider
+        return dto;
     }
 
     private AppointmentDTO convertToDTO(Appointment appointment) {
